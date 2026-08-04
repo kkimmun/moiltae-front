@@ -1,0 +1,32 @@
+export const theme = {
+  color: {
+    primary: "#f65f43",
+    primaryDark: "#d9472e",
+    primarySoft: "#fff0eb",
+    accent: "#ffd66b",
+    ink: "#172033",
+    sub: "#677086",
+    muted: "#98a0b2",
+    background: "#f7f5f0",
+    surface: "#ffffff",
+    surfaceAlt: "#eeece6",
+    border: "#e4e0d8",
+    success: "#198754",
+    successSoft: "#e8f6ef",
+    warning: "#a96b00",
+    warningSoft: "#fff6dc",
+    danger: "#cc3f3f",
+    dangerSoft: "#fff0f0",
+  },
+  radius: {
+    sm: "8px",
+    md: "14px",
+    lg: "22px",
+    pill: "999px",
+  },
+  shadow: {
+    sm: "0 8px 24px rgba(23, 32, 51, 0.07)",
+    md: "0 18px 50px rgba(23, 32, 51, 0.12)",
+  },
+  font: "Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+};
