@@ -3,9 +3,12 @@ import axios from "axios";
 export const TOKEN_KEY = "moiltae.accessToken";
 export const MEMBER_KEY = "moiltae.member";
 
+const defaultBaseURL = import.meta.env.DEV
+  ? "http://localhost:8889/api/v1"
+  : "/api/v1";
+
 const api = axios.create({
-  baseURL:
-    import.meta.env.VITE_API_BASE_URL || "http://localhost:8889/api/v1",
+  baseURL: import.meta.env.VITE_API_BASE_URL || defaultBaseURL,
   timeout: 10000,
 });
 
