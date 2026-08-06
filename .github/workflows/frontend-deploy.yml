@@ -1,0 +1,157 @@
+name: Build and Deploy Frontend
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: moiltae-frontend-production
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Prepare frontend archive
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s dist/index.html
+          mkdir -p deploy-package
+          tar -czf deploy-package/moiltae-frontend.tar.gz -C dist .
+          test -s deploy-package/moiltae-frontend.tar.gz
+
+      - name: Validate deployment secrets
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          HOST: ${{ secrets.HOST }}
+          USERNAME: ${{ secrets.USERNAME }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$HOST"
+          test -n "$USERNAME"
+          test -n "$SSH_KEY"
+
+      - name: Upload frontend archive to EC2 staging directory
+        if: github.event_name != 'pull_request'
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          port: 22
+          source: deploy-package/moiltae-frontend.tar.gz
+          target: /home/ubuntu/app/.deploy/frontend-${{ github.sha }}
+          strip_components: 1
+          overwrite: true
+
+      - name: Activate frontend and verify HTTPS
+        if: github.event_name != 'pull_request'
+        uses: appleboy/ssh-action@v1.2.5
+        env:
+          DEPLOY_SHA: ${{ github.sha }}
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          port: 22
+          envs: DEPLOY_SHA
+          command_timeout: 15m
+          script: |
+            set -eu
+
+            APP_DIR=/home/ubuntu/app
+            DEPLOY_DIR="$APP_DIR/.deploy"
+            STAGE_DIR="$DEPLOY_DIR/frontend-$DEPLOY_SHA"
+            ARCHIVE="$STAGE_DIR/moiltae-frontend.tar.gz"
+            NEW_DIST="$STAGE_DIR/dist"
+            TARGET_DIST="$APP_DIR/dist"
+            BACKUP_DIST="$DEPLOY_DIR/dist.backup-$DEPLOY_SHA"
+            HAD_PREVIOUS=0
+
+            mkdir -p "$DEPLOY_DIR"
+            exec 9>"$DEPLOY_DIR/deploy.lock"
+            flock -w 300 9
+
+            test -s "$ARCHIVE"
+            test -f "$APP_DIR/docker-compose.yml"
+            test -f "$APP_DIR/nginx.conf"
+
+            mkdir -p "$NEW_DIST"
+            tar -xzf "$ARCHIVE" -C "$NEW_DIST"
+            test -s "$NEW_DIST/index.html"
+
+            cd "$APP_DIR"
+            docker compose config --quiet
+
+            if [ -d "$TARGET_DIST" ]; then
+              mv "$TARGET_DIST" "$BACKUP_DIST"
+              HAD_PREVIOUS=1
+            fi
+
+            mv "$NEW_DIST" "$TARGET_DIST"
+
+            rollback() {
+              echo "Frontend deployment failed. Restoring the previous dist directory."
+              rm -rf "$TARGET_DIST"
+              if [ "$HAD_PREVIOUS" -eq 1 ] && [ -d "$BACKUP_DIST" ]; then
+                mv "$BACKUP_DIST" "$TARGET_DIST"
+                docker compose up -d --no-deps --force-recreate web || true
+              fi
+            }
+
+            if ! docker compose up -d --no-deps --force-recreate web; then
+              rollback
+              exit 1
+            fi
+
+            healthy=0
+            attempt=1
+            while [ "$attempt" -le 20 ]; do
+              if curl --fail --silent --show-error \
+                --resolve kh-evre.shop:443:127.0.0.1 \
+                https://kh-evre.shop/ >/dev/null; then
+                healthy=1
+                break
+              fi
+              sleep 2
+              attempt=$((attempt + 1))
+            done
+
+            if [ "$healthy" -ne 1 ]; then
+              rollback
+              exit 1
+            fi
+
+            rm -rf "$BACKUP_DIST"
+            rm -rf "$STAGE_DIR"
+            docker compose ps web
