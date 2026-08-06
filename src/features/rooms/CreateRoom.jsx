@@ -14,6 +14,7 @@ import {
   PageHeading,
 } from "../../styles/shared";
 import { addDays, toDateInput, toDateTimeInput } from "../../utils/date";
+import { openNativePicker } from "../../utils/nativePicker";
 import { DateFields, HelperText, NarrowPage } from "./Room.styles";
 
 const now = new Date();
@@ -83,7 +84,13 @@ export default function CreateRoom() {
           <DateFields>
             <Field>
               일정 시작일
-              <Input type="date" value={form.startDate} onChange={update("startDate")} required />
+              <Input
+                type="date"
+                value={form.startDate}
+                onClick={openNativePicker}
+                onChange={update("startDate")}
+                required
+              />
             </Field>
             <Field>
               일정 종료일
@@ -91,6 +98,7 @@ export default function CreateRoom() {
                 type="date"
                 min={form.startDate}
                 value={form.endDate}
+                onClick={openNativePicker}
                 onChange={update("endDate")}
                 required
               />
@@ -102,6 +110,7 @@ export default function CreateRoom() {
             <Input
               type="datetime-local"
               value={form.closesAt}
+              onClick={openNativePicker}
               onChange={update("closesAt")}
               required
             />

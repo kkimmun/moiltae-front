@@ -1,4 +1,5 @@
 import { Button, Field, Input } from "../../styles/shared";
+import { openNativePicker } from "../../utils/nativePicker";
 import {
   RangeEmpty,
   RangeList,
@@ -37,6 +38,7 @@ export default function TimeRangeEditor({
               value={range.date}
               disabled={disabled}
               aria-label={`${index + 1}번째 가능 날짜`}
+              onClick={openNativePicker}
               onChange={(event) => onChange(range.id, "date", event.target.value)}
             />
           </Field>
@@ -48,6 +50,7 @@ export default function TimeRangeEditor({
               value={range.startTime}
               disabled={disabled}
               aria-label={`${index + 1}번째 시작 시간`}
+              onClick={openNativePicker}
               onChange={(event) => onChange(range.id, "startTime", event.target.value)}
             />
           </Field>
@@ -60,6 +63,7 @@ export default function TimeRangeEditor({
               value={range.endTime}
               disabled={disabled}
               aria-label={`${index + 1}번째 종료 시간`}
+              onClick={openNativePicker}
               onChange={(event) => onChange(range.id, "endTime", event.target.value)}
             />
           </Field>

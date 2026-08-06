@@ -108,6 +108,16 @@ export const Input = styled.input`
   color: ${({ theme }) => theme.color.ink};
   background: #fff;
 
+  &[type="date"],
+  &[type="time"],
+  &[type="datetime-local"] {
+    cursor: pointer;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+
   &::placeholder {
     color: ${({ theme }) => theme.color.muted};
   }
